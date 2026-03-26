@@ -4,43 +4,45 @@ const db = require('../db');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // Get all students
-router.get('/', authenticateToken, (req, res) => {
-    db.all(`SELECT * FROM students`, [], (err, rows) => {
-        if (err) {
-            return res.status(500).json({ success: false, message: 'Gagal mengambil data siswa' });
-        }
+router.get('/', authenticateToken, async (req, res) => {
+    try {
+        const { rows } = await db.query(`SELECT * FROM students`);
         res.json({ success: true, data: rows });
-    });
+    } catch (err) {
+        console.error('Get students error:', err);
+        res.status(500).json({ success: false, message: 'Gagal mengambil data siswa' });
+    }
 });
 
-// Import students (Replace all existing or append? The MVP was replacing actually. Let's just clear and insert for simplicity of MVP import)
-router.post('/import', authenticateToken, requireRole('admin'), (req, res) => {
+// Import students
+router.post('/import', authenticateToken, requireRole('admin'), async (req, res) => {
     const students = req.body;
     if (!Array.isArray(students)) {
         return res.status(400).json({ success: false, message: 'Format data tidak valid' });
     }
 
-    db.serialize(() => {
-        db.run('BEGIN TRANSACTION');
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
         
-        // Clear existing (optional, but requested behavior is usually to replace all in MVP)
-        db.run('DELETE FROM students');
-
-        const stmt = db.prepare(`INSERT INTO students (nis, nama, kelas) VALUES (?, ?, ?)`);
+        // Clear existing
+        await client.query('DELETE FROM students');
+        
         for (const student of students) {
             if (student.nis && student.nama && student.kelas) {
-                stmt.run([student.nis, student.nama, student.kelas]);
+                await client.query(`INSERT INTO students (nis, nama, kelas) VALUES ($1, $2, $3)`, [student.nis, student.nama, student.kelas]);
             }
         }
-        stmt.finalize();
-
-        db.run('COMMIT', (err) => {
-            if (err) {
-                return res.status(500).json({ success: false, message: 'Gagal menyimpan data siswa' });
-            }
-            res.json({ success: true, message: 'Data siswa berhasil diimpor' });
-        });
-    });
+        
+        await client.query('COMMIT');
+        res.json({ success: true, message: 'Data siswa berhasil diimpor' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Import error:', err);
+        res.status(500).json({ success: false, message: 'Gagal menyimpan data siswa' });
+    } finally {
+        client.release();
+    }
 });
 
 module.exports = router;

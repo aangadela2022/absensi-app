@@ -1,48 +1,49 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+require('dotenv').config();
+const { Pool } = require('pg');
 
-const dbPath = path.resolve(__dirname, 'database.sqlite');
-const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-        console.error('Error connecting to database:', err.message);
-    } else {
-        console.log('Connected to the SQLite database.');
-        initDb();
-    }
+// Gunakan connection string dari environment variable atau fallback lokal
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/absensi',
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-function initDb() {
-    db.serialize(() => {
-        // Users Table
-        db.run(`CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            role TEXT NOT NULL
+pool.on('connect', () => {
+    // console.log('Connected to the PostgreSQL database.');
+});
+
+pool.on('error', (err) => {
+    console.error('Unexpected error on idle client', err);
+});
+
+async function initDb() {
+    try {
+        await pool.query(`CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(255) UNIQUE NOT NULL,
+            password VARCHAR(255) NOT NULL,
+            role VARCHAR(50) NOT NULL
         )`);
 
-        // Students Table
-        db.run(`CREATE TABLE IF NOT EXISTS students (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nis TEXT UNIQUE NOT NULL,
-            nama TEXT NOT NULL,
-            kelas TEXT NOT NULL
+        await pool.query(`CREATE TABLE IF NOT EXISTS students (
+            id SERIAL PRIMARY KEY,
+            nis VARCHAR(50) UNIQUE NOT NULL,
+            nama VARCHAR(255) NOT NULL,
+            kelas VARCHAR(50) NOT NULL
         )`);
 
-        // Attendance Table
-        db.run(`CREATE TABLE IF NOT EXISTS attendance (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nis TEXT NOT NULL,
-            tanggal TEXT NOT NULL,
-            waktu TEXT NOT NULL,
-            FOREIGN KEY (nis) REFERENCES students(nis)
+        await pool.query(`CREATE TABLE IF NOT EXISTS attendance (
+            id SERIAL PRIMARY KEY,
+            nis VARCHAR(50) NOT NULL,
+            tanggal DATE NOT NULL,
+            waktu TIME NOT NULL,
+            FOREIGN KEY (nis) REFERENCES students(nis) ON DELETE CASCADE
         )`);
-
-        // Seed Admin User if not exists
-        // Password is 'admin123' hashed with bcrypt (we will just use a generic hash or plain for now and update later, actually let's just insert plain if we don't use bcrypt yet, wait, we are using bcrypt)
-        // Let's insert it carefully in auth.js instead of here to prevent circular dependencies with bcrypt, or just do it here.
-    });
+        console.log('Database tables verified for PostgreSQL.');
+    } catch (err) {
+        console.error('Error initializing database:', err);
+    }
 }
 
-module.exports = db;
+initDb();
+
+module.exports = pool;
