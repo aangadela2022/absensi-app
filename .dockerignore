@@ -1,0 +1,8 @@
+node_modules
+.env
+.git
+.gitignore
+firebase.json
+.firebaserc
+vercel.json
+*.md

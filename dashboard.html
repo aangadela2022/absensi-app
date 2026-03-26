@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Sistem Absensi MVP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Chart.js for statistics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Dashboard Layout Variables */
+        :root {
+            --sidebar-width: 250px;
+        }
+
+        body {
+            display: flex;
+            background: var(--bg-gradient);
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(16px);
+            border-right: 1px solid var(--glass-border);
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-glass);
+            z-index: 10;
+        }
+
+        .sidebar-brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            padding: 0 1rem;
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.8rem 1rem;
+            color: var(--gray);
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: var(--transition);
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background: rgba(79, 70, 229, 0.2);
+            color: var(--primary);
+        }
+
+        .mt-auto { margin-top: auto; }
+
+        /* Main Content Styles */
+        .main-content {
+            flex: 1;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 2rem;
+            position: relative;
+        }
+
+        /* Topbar */
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--glass-bg);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .user-role-badge {
+            background: var(--primary);
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            padding: 1.5rem;
+            border-radius: 12px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-card h3 {
+            font-size: 0.9rem;
+            color: var(--gray);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--white);
+        }
+
+        .chart-container {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            height: 400px;
+        }
+        
+        /* Role based visibility */
+        .admin-only, .operator-only { display: none; }
+    </style>
+</head>
+<body>
+    <div class="blob shape-1" style="left: 20%; top: -10%;"></div>
+    <div class="blob shape-2" style="right: -5%; bottom: -5%;"></div>
+
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            📊 MVP Absensi
+        </div>
+        
+        <nav>
+            <a href="dashboard.html" class="nav-link active">Dashboard</a>
+            <a href="scan.html" class="nav-link operator-only">Scan QR Code</a>
+            <a href="import.html" class="nav-link admin-only">Import Data Siswa</a>
+            <a href="laporan.html" class="nav-link admin-only">Laporan Absensi</a>
+            
+            <a href="#" onclick="logout()" class="nav-link mt-auto">Logout</a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div>
+                <h2>Dashboard Statistik</h2>
+                <p id="currentDateDisplay" style="color: var(--gray); font-size: 0.9rem;">Memuat tanggal...</p>
+            </div>
+            <div class="user-info">
+                <span id="userNameDisplay">User</span>
+                <span id="userRoleDisplay" class="user-role-badge">Role</span>
+            </div>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Siswa</h3>
+                <div class="value" id="totalSiswa">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Hadir Hari Ini</h3>
+                <div class="value" id="hadirHariIni" style="color: var(--success);">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Persentase Kehadiran</h3>
+                <div class="value" id="persentaseHadir">0%</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="attendanceChart"></canvas>
+        </div>
+    </main>
+
+    <!-- Core Scripts -->
+    <script src="js/api.js"></script>
+    <script>
+        // Inline Security Check
+        document.addEventListener('DOMContentLoaded', () => {
+            const currentUser = Api.getCurrentUser();
+            if (!currentUser) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // UI population
+            document.getElementById('userNameDisplay').textContent = currentUser.username;
+            document.getElementById('userRoleDisplay').textContent = currentUser.role;
+
+            // Handle Role Based UI
+            if (currentUser.role === 'admin') {
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
+            } else if (currentUser.role === 'operator') {
+                document.querySelectorAll('.operator-only').forEach(el => el.style.display = 'flex');
+            }
+
+            // Display current date
+            const today = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDateDisplay').textContent = today.toLocaleDateString('id-ID', options);
+        });
+
+        function logout() {
+            Api.clearSession();
+            window.location.href = 'login.html';
+        }
+    </script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
