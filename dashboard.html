@@ -236,8 +236,42 @@
             </div>
         </div>
 
-        <div class="chart-container">
-            <canvas id="attendanceChart"></canvas>
+        <div class="dashboard-bottom-layout" style="display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2rem;">
+            <!-- Row 1: Chart and Class Stats -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                <div class="chart-container" style="height: auto;">
+                    <canvas id="attendanceChart" style="max-height: 250px;"></canvas>
+                </div>
+                
+                <div style="background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1.5rem; height: auto;">
+                    <h3 style="color: var(--white); margin-bottom: 1rem; font-size: 1.1rem;">Sebaran per Kelas</h3>
+                    <div id="classStatsList" style="display: flex; flex-direction: column; gap: 1rem; max-height: 250px; overflow-y: auto; padding-right: 5px;">
+                        <!-- Injected by JS -->
+                        <p style="color: var(--gray); text-align: center;">Memuat data kelas...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: Recent Scans Table -->
+            <div style="background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1.5rem;">
+                <h3 style="color: var(--white); margin-bottom: 1rem; font-size: 1.1rem;">Siswa yang Sudah Scan Hari Ini</h3>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; color: var(--gray); text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--glass-border);">
+                                <th style="padding: 10px;">Waktu</th>
+                                <th style="padding: 10px;">NIS</th>
+                                <th style="padding: 10px;">Nama</th>
+                                <th style="padding: 10px;">Kelas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentScansBody">
+                            <!-- Injected by JS -->
+                            <tr><td colspan="4" style="text-align: center; padding: 1rem;">Memuat data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </main>
 

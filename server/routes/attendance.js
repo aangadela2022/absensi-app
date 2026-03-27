@@ -55,11 +55,39 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
         
         const percentage = total_students > 0 ? Math.round((present_today / total_students) * 100) : 0;
 
+        // Class stats
+        const { rows: classTotalRows } = await db.query('SELECT kelas, COUNT(*) as total FROM students GROUP BY kelas');
+        const { rows: classPresentRows } = await db.query('SELECT s.kelas, COUNT(DISTINCT a.nis) as hadir FROM attendance a JOIN students s ON a.nis = s.nis WHERE a.tanggal = $1 GROUP BY s.kelas', [today]);
+        
+        const class_stats = classTotalRows.map(ct => {
+            const cp = classPresentRows.find(p => p.kelas === ct.kelas);
+            const hadir = cp ? parseInt(cp.hadir) : 0;
+            const totalClass = parseInt(ct.total);
+            const pct = totalClass > 0 ? Math.round((hadir / totalClass) * 100) : 0;
+            return {
+                kelas: ct.kelas,
+                total: totalClass,
+                hadir,
+                percentage: pct
+            };
+        });
+
+        // Recent scans today
+        const { rows: recent_scans } = await db.query(`
+            SELECT a.waktu, s.nis, s.nama, s.kelas 
+            FROM attendance a 
+            JOIN students s ON a.nis = s.nis 
+            WHERE a.tanggal = $1 
+            ORDER BY a.waktu DESC
+        `, [today]);
+
         res.json({
             success: true,
             total_students,
             present_today,
-            percentage
+            percentage,
+            class_stats,
+            recent_scans
         });
     } catch (err) {
         console.error('Dashboard stats error:', err);
@@ -108,7 +136,7 @@ router.get('/report', authenticateToken, requireRole('admin'), async (req, res) 
         studentQuery += ' ORDER BY nama ASC';
 
         const { rows: students } = await db.query(studentQuery, studentParams);
-        const { rows: attendanceRecords } = await db.query('SELECT * FROM attendance WHERE tanggal >= $1 AND tanggal <= $2', [start_date, end_date]);
+        const { rows: attendanceRecords } = await db.query("SELECT id, nis, TO_CHAR(tanggal, 'YYYY-MM-DD') as tanggal, waktu FROM attendance WHERE tanggal >= $1 AND tanggal <= $2", [start_date, end_date]);
 
         res.json({
             success: true,

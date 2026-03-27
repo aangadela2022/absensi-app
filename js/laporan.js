@@ -103,7 +103,10 @@ async function generateMatrix() {
         let hadirCount = 0;
         
         dates.forEach(d => {
-            const isPresent = attendance.find(a => a.nis === student.nis && a.tanggal === d);
+            const isPresent = attendance.find(a => {
+                const aDateStr = typeof a.tanggal === 'string' ? a.tanggal.split('T')[0] : a.tanggal;
+                return a.nis === student.nis && aDateStr === d;
+            });
             if (isPresent) {
                 htmlCell += `<td class="status-h">H</td>`;
                 hadirCount++;
