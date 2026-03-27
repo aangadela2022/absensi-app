@@ -6,8 +6,13 @@ let html5Qrcode = null;
 let lastScannedCode = "";
 let lastScannedTime = null;
 
+// Local state for table & stats
+let scannedStudents = [];
+let classStats = {}; // { '10A': { total: 30, hadir: 0 }, ... }
+
 document.addEventListener('DOMContentLoaded', () => {
     initScanner();
+    fetchTodayData();
 });
 
 function initScanner() {
@@ -32,9 +37,9 @@ function initScanner() {
 }
 
 function onScanSuccess(decodedText) {
-    // Prevent rapid double scanning of the same code within 3 seconds
+    // Prevent rapid double scanning of the same code within 5 seconds
     const now = new Date().getTime();
-    if (decodedText === lastScannedCode && lastScannedTime && (now - lastScannedTime) < 3000) {
+    if (decodedText === lastScannedCode && lastScannedTime && (now - lastScannedTime) < 5000) {
         return; 
     }
     
@@ -46,6 +51,124 @@ function onScanSuccess(decodedText) {
 
 function onScanFailure(error) {
     // Silently ignore normal scan failures (searching for QR)
+}
+
+function handleManualScan() {
+    const manualInput = document.getElementById('manualNis');
+    const nis = manualInput.value.trim();
+    if (!nis) {
+        playErrorSound();
+        return;
+    }
+    
+    // Check if the manual NIS was just entered recently to avoid spam clicks
+    const now = new Date().getTime();
+    if (nis === lastScannedCode && lastScannedTime && (now - lastScannedTime) < 5000) {
+        return;
+    }
+    
+    lastScannedCode = nis;
+    lastScannedTime = now;
+    
+    manualInput.value = '';
+    processScan(nis);
+}
+
+async function fetchTodayData() {
+    const response = await Api.fetchData('/attendance/today', 'GET');
+    if (response.success) {
+        scannedStudents = response.attendance || [];
+        classStats = {};
+        
+        // Initialize stats object from totals
+        (response.stats || []).forEach(stat => {
+            classStats[stat.kelas] = { total: parseInt(stat.total), hadir: 0 };
+        });
+        
+        // Calculate kehadiran
+        scannedStudents.forEach(st => {
+            if (classStats[st.kelas]) {
+                classStats[st.kelas].hadir += 1;
+            }
+        });
+        
+        renderTable();
+        renderStats();
+    }
+}
+
+function renderTable() {
+    const tbody = document.getElementById('scannedTableBody');
+    document.getElementById('totalScannedToday').textContent = scannedStudents.length;
+    
+    if (scannedStudents.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 1.5rem; color: var(--gray); font-size: 0.9rem;">Belum ada data</td></tr>`;
+        return;
+    }
+    
+    let html = '';
+    // Show top 50 to avoid massive DOM if many students
+    const displayList = scannedStudents.slice(0, 50);
+    
+    displayList.forEach(st => {
+        html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem;">
+            <td style="padding: 0.75rem 0.5rem; color: var(--gray);">${st.waktu}</td>
+            <td style="padding: 0.75rem 0.5rem;">${st.nis}</td>
+            <td style="padding: 0.75rem 0.5rem;">${st.nama}</td>
+            <td style="padding: 0.75rem 0.5rem;"><span style="background: rgba(79, 70, 229, 0.2); color: var(--secondary); padding: 0.2rem 0.5rem; border-radius: 4px;">${st.kelas}</span></td>
+        </tr>`;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+function renderStats() {
+    const container = document.getElementById('classStatsContainer');
+    const classes = Object.keys(classStats).sort();
+    
+    if (classes.length === 0) {
+        container.innerHTML = `<p style="color: var(--gray); text-align: center; font-size: 0.9rem;">Belum ada kelas.</p>`;
+        return;
+    }
+    
+    let html = '';
+    classes.forEach(cls => {
+        const stats = classStats[cls];
+        const pct = stats.total > 0 ? Math.round((stats.hadir / stats.total) * 100) : 0;
+        
+        // Progress bar color based on percentage
+        const color = pct >= 80 ? 'var(--success)' : (pct >= 50 ? 'var(--warning)' : 'var(--danger)');
+        
+        html += `
+            <div style="margin-bottom: 0.5rem;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.25rem;">
+                    <span>Kelas ${cls}</span>
+                    <span style="color: var(--gray);">${stats.hadir} / ${stats.total} (${pct}%)</span>
+                </div>
+                <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                    <div style="height: 100%; width: ${pct}%; background: ${color}; transition: width 0.5s ease;"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function updateLocalState(student, time) {
+    scannedStudents.unshift({
+        waktu: time,
+        nis: student.nis,
+        nama: student.nama,
+        kelas: student.kelas
+    });
+    
+    if (classStats[student.kelas]) {
+        classStats[student.kelas].hadir += 1;
+    }
+    
+    renderTable();
+    renderStats();
 }
 
 async function processScan(nis) {
@@ -71,27 +194,28 @@ async function processScan(nis) {
     
     if (!response.success && response.message === 'Siswa sudah melakukan absensi hari ini') {
         // Already Scanned
-        playAlreadySound();
+        const student = response.student;
+        playAlreadySound(student.nama);
         document.getElementById('resTitle').textContent = `⚠️ Sudah Absen Hari Ini`;
         document.getElementById('resTitle').style.color = '#f59e0b';
         resultCard.classList.add('already');
         
-        const student = response.student;
         document.getElementById('resName').textContent = student.nama;
         document.getElementById('resClass').textContent = student.kelas;
-        // Ideally the API would return existing time, but for now we just show a dash or from state if available
         document.getElementById('resTime').textContent = '-'; 
 
     } else if (response.success) {
         // Success
-        playSuccessSound();
+        const student = response.student;
+        playSuccessSound(student.nama);
         document.getElementById('resTitle').textContent = `✔ Berhasil Absen`;
         document.getElementById('resTitle').style.color = '#6ee7b7';
         
-        const student = response.student;
         document.getElementById('resName').textContent = student.nama;
         document.getElementById('resClass').textContent = student.kelas;
         document.getElementById('resTime').textContent = response.time;
+        
+        updateLocalState(student, response.time);
     } else {
         // Server Error
         playErrorSound();
@@ -110,24 +234,37 @@ async function processScan(nis) {
     }, 4000);
 }
 
-// Fallback Sound Synth
-function playSuccessSound() {
-    try {
-        const audio = new Audio('assets/sound/success.mp3');
-        audio.play().catch(e => synthBeep(600, 100)); // Fallback if no file
-    } catch (e) { synthBeep(600, 100); }
+/* ==========================================================================
+   Voice Notifications (TTS)
+   ========================================================================== */
+function speak(text) {
+    if ('speechSynthesis' in window) {
+        // Cancel any ongoing speech to prioritize the newest one immediately if someone is quick
+        window.speechSynthesis.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'id-ID';
+        utterance.rate = 1.1; // slightly faster
+        window.speechSynthesis.speak(utterance);
+    } else {
+        // Fallback to beep if unsupported
+        synthBeep(600, 100);
+    }
 }
 
-function playAlreadySound() {
-    synthBeep(300, 200, "square");
+function playSuccessSound(nama) {
+    if(nama) speak(nama + " berhasil absen");
+}
+
+function playAlreadySound(nama) {
+    if(nama) speak(nama + " telah absen");
 }
 
 function playErrorSound() {
-    synthBeep(150, 400, "sawtooth");
+    speak("gagal absen");
 }
 
 function synthBeep(freq, dur, type = "sine") {
-    // Generate beep using Web Audio API as a robust MVP fallback
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
     

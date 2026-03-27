@@ -67,6 +67,31 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     }
 });
 
+// Get today's attendance details for scanner page
+router.get('/today', authenticateToken, async (req, res) => {
+    const today = new Date().toISOString().split('T')[0];
+    try {
+        const { rows: attendance } = await db.query(`
+            SELECT a.waktu, s.nis, s.nama, s.kelas 
+            FROM attendance a 
+            JOIN students s ON a.nis = s.nis 
+            WHERE a.tanggal = $1 
+            ORDER BY a.waktu DESC
+        `, [today]);
+        
+        const { rows: statsRows } = await db.query(`
+            SELECT kelas, COUNT(*) as total 
+            FROM students 
+            GROUP BY kelas
+        `);
+        
+        res.json({ success: true, attendance, stats: statsRows });
+    } catch (err) {
+        console.error('API /today error:', err);
+        res.status(500).json({ success: false, message: 'Database error' });
+    }
+});
+
 // Report matrix data
 router.get('/report', authenticateToken, requireRole('admin'), async (req, res) => {
     const { kelas, start_date, end_date } = req.query;

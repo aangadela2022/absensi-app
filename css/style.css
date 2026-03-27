@@ -225,3 +225,12 @@ h1, h2, h3, h4 {
     font-size: 0.8rem;
     color: var(--gray);
 }
+
+/* ==========================================================================
+   Mobile Responsiveness specific for Login
+   ========================================================================== */
+@media (max-width: 480px) {
+    .login-container {
+        padding: 1.5rem;
+    }
+}

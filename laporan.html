@@ -103,6 +103,61 @@
 
         .admin-only, .operator-only { display: none; }
 
+        /* Responsive Layout for Mobile */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                padding: 1rem;
+                border-right: none;
+                border-bottom: 1px solid var(--glass-border);
+            }
+            .sidebar-brand {
+                margin-bottom: 1rem;
+                justify-content: center;
+            }
+            nav {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 0.5rem;
+            }
+            .nav-link {
+                margin-bottom: 0;
+                padding: 0.5rem 1rem;
+                flex: 1 1 auto;
+                text-align: center;
+                justify-content: center;
+            }
+            .main-content {
+                height: auto;
+                padding: 1rem;
+                overflow-y: visible;
+                width: 100%;
+                max-width: 100vw;
+                box-sizing: border-box;
+            }
+            .filter-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .filter-group {
+                width: 100%;
+            }
+            .filter-group input, .filter-group select {
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .btn-group {
+                flex-direction: column;
+            }
+        }
+
         /* Print Layout */
         @media print {
             body { background: white; color: black; display: block; overflow: visible; }
