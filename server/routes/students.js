@@ -25,21 +25,24 @@ router.post('/import', authenticateToken, requireRole('admin'), async (req, res)
     try {
         await client.query('BEGIN');
         
-        // Clear existing
-        await client.query('DELETE FROM students');
-        
         for (const student of students) {
             if (student.nis && student.nama && student.kelas) {
-                await client.query(`INSERT INTO students (nis, nama, kelas) VALUES ($1, $2, $3)`, [student.nis, student.nama, student.kelas]);
+                await client.query(
+                    `INSERT INTO students (nis, nama, kelas) 
+                     VALUES ($1, $2, $3) 
+                     ON CONFLICT (nis) DO UPDATE 
+                     SET nama = EXCLUDED.nama, kelas = EXCLUDED.kelas`, 
+                    [student.nis, student.nama, student.kelas]
+                );
             }
         }
         
         await client.query('COMMIT');
-        res.json({ success: true, message: 'Data siswa berhasil diimpor' });
+        res.json({ success: true, message: 'Data siswa berhasil diimpor/diperbarui' });
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Import error:', err);
-        res.status(500).json({ success: false, message: 'Gagal menyimpan data siswa' });
+        res.status(500).json({ success: false, message: 'Gagal menyimpan/memperbarui data siswa' });
     } finally {
         client.release();
     }
