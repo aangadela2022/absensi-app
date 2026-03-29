@@ -135,7 +135,11 @@ function getDatesBetween(start, end) {
     const stopDate = new Date(end);
     
     while (currentDate <= stopDate) {
-        dateArray.push(new Date(currentDate).toISOString().split('T')[0]);
+        const dayOfWeek = currentDate.getDay();
+        // 0 = Sunday, 6 = Saturday. Skip weekends.
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            dateArray.push(new Date(currentDate).toISOString().split('T')[0]);
+        }
         currentDate.setDate(currentDate.getDate() + 1);
     }
     return dateArray;
