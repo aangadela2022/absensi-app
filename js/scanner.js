@@ -134,19 +134,20 @@ function renderStats() {
     let html = '';
     classes.forEach(cls => {
         const stats = classStats[cls];
-        const pct = stats.total > 0 ? Math.round((stats.hadir / stats.total) * 100) : 0;
+        const pctNum = stats.total > 0 ? (stats.hadir / stats.total) * 100 : 0;
+        const pctStr = pctNum.toFixed(1).replace('.', ',');
         
         // Progress bar color based on percentage
-        const color = pct >= 80 ? 'var(--success)' : (pct >= 50 ? 'var(--warning)' : 'var(--danger)');
+        const color = pctNum >= 80 ? 'var(--success)' : (pctNum >= 50 ? 'var(--warning)' : 'var(--danger)');
         
         html += `
             <div style="margin-bottom: 0.5rem;">
                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.25rem;">
                     <span>Kelas ${cls}</span>
-                    <span style="color: var(--gray);">${stats.hadir} / ${stats.total} (${pct}%)</span>
+                    <span style="color: var(--gray);">${stats.hadir} / ${stats.total} (${pctStr}%)</span>
                 </div>
                 <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
-                    <div style="height: 100%; width: ${pct}%; background: ${color}; transition: width 0.5s ease;"></div>
+                    <div style="height: 100%; width: ${pctNum}%; background: ${color}; transition: width 0.5s ease;"></div>
                 </div>
             </div>
         `;

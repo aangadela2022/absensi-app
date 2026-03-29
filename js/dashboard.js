@@ -16,7 +16,8 @@ async function loadDashboardData() {
         document.getElementById('totalSiswa').textContent = response.total_students;
         document.getElementById('hadirHariIni').textContent = response.present_today;
         const pctEl = document.getElementById('persentaseHadir');
-        pctEl.textContent = `${response.percentage}%`;
+        const formattedPct = parseFloat(response.percentage).toFixed(1).replace('.', ',');
+        pctEl.textContent = `${formattedPct}%`;
         
         if (response.percentage < 75) {
             pctEl.style.color = 'var(--danger)'; 
@@ -44,12 +45,13 @@ function renderClassStats(stats) {
     stats.sort((a, b) => a.kelas.localeCompare(b.kelas));
 
     stats.forEach(stat => {
+        const formattedPct = parseFloat(stat.percentage).toFixed(1).replace('.', ',');
         const barColor = stat.percentage < 75 ? 'var(--danger)' : 'var(--success)';
         const html = `
             <div style="background: rgba(255,255,255,0.05); padding: 0.8rem; border-radius: 8px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
                     <span style="color: var(--white); font-weight: 600;">${stat.kelas}</span>
-                    <span style="color: ${barColor}; font-weight: bold;">${stat.percentage}%</span>
+                    <span style="color: ${barColor}; font-weight: bold;">${formattedPct}%</span>
                 </div>
                 <div style="width: 100%; background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; overflow: hidden;">
                     <div style="width: ${stat.percentage}%; background: ${barColor}; height: 100%; border-radius: 4px; transition: width 0.5s;"></div>

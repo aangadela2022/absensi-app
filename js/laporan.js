@@ -116,11 +116,12 @@ async function generateMatrix() {
         });
         
         const totalHari = dates.length;
-        const pct = totalHari > 0 ? Math.round((hadirCount/totalHari)*100) : 0;
+        const pctNum = totalHari > 0 ? (hadirCount/totalHari)*100 : 0;
+        const pctStr = pctNum.toFixed(1).replace('.', ',');
         
         // Highlight logic
-        const classNames = pct < 75 ? 'low-attendance' : '';
-        const pctText = pct < 75 ? `🔴 ${pct}%` : `${pct}%`;
+        const classNames = pctNum < 75 ? 'low-attendance' : '';
+        const pctText = pctNum < 75 ? `🔴 ${pctStr}%` : `${pctStr}%`;
         
         htmlCell += `<td class="${classNames}">${pctText}</td>`;
         
