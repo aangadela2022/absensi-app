@@ -6,8 +6,9 @@ const { authenticateToken, requireRole } = require('../middleware/auth');
 // Scan QR to record attendance
 router.post('/scan', authenticateToken, async (req, res) => {
     const { nis } = req.body;
-    const today = new Date().toISOString().split('T')[0];
-    const now = new Date().toTimeString().split(' ')[0].substring(0, 5);
+    const wibDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+    const today = wibDate.toISOString().split('T')[0];
+    const now = wibDate.toISOString().split('T')[1].substring(0, 5);
 
     if (!nis) {
         return res.status(400).json({ success: false, message: 'NIS tidak valid' });
@@ -44,7 +45,8 @@ router.post('/scan', authenticateToken, async (req, res) => {
 
 // Dashboard stats
 router.get('/dashboard', authenticateToken, async (req, res) => {
-    const today = new Date().toISOString().split('T')[0];
+    const wibDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+    const today = wibDate.toISOString().split('T')[0];
     
     try {
         const { rows: sRows } = await db.query('SELECT COUNT(*) as total_students FROM students');
@@ -97,7 +99,8 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
 
 // Get today's attendance details for scanner page
 router.get('/today', authenticateToken, async (req, res) => {
-    const today = new Date().toISOString().split('T')[0];
+    const wibDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+    const today = wibDate.toISOString().split('T')[0];
     try {
         const { rows: attendance } = await db.query(`
             SELECT a.waktu, s.nis, s.nama, s.kelas 
