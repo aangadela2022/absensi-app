@@ -254,11 +254,17 @@ function speak(text) {
 }
 
 function playSuccessSound(nama) {
-    if(nama) speak(nama + " berhasil absen");
+    if(nama) {
+        const namaDepan = nama.split(' ')[0];
+        speak(namaDepan + " berhasil absen");
+    }
 }
 
 function playAlreadySound(nama) {
-    if(nama) speak(nama + " telah absen");
+    if(nama) {
+        const namaDepan = nama.split(' ')[0];
+        speak(namaDepan + " telah absen");
+    }
 }
 
 function playErrorSound() {
